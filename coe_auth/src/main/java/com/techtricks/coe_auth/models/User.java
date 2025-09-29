@@ -2,6 +2,7 @@ package com.techtricks.coe_auth.models;
 
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -27,24 +28,22 @@ public class User implements UserDetails {
     private String username;
     private String email;
     private String password;
-
+    @Column(unique = true , nullable = false)
+    private Long registerNumber;
     @Enumerated(EnumType.STRING)
     private Role role;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        Set<SimpleGrantedAuthority> authorites = new HashSet<>();
+        Set<SimpleGrantedAuthority> authorities = new HashSet<>();
 
-        authorites.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
+        authorities.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
         Set<SimpleGrantedAuthority> permissionAuthorities = role.getPermissions().stream()
                 .map(permission -> new SimpleGrantedAuthority(permission.name()))
                 .collect(Collectors.toSet());
-        authorites.addAll(permissionAuthorities);
-        return authorites;
+        authorities.addAll(permissionAuthorities);
+        return authorities;
     }
-
-
-
 
     @Override
     public boolean isAccountNonExpired() {
