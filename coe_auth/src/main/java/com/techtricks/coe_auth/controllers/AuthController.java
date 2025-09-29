@@ -1,7 +1,7 @@
 package com.techtricks.coe_auth.controllers;
 import com.techtricks.coe_auth.dtos.UserDto;
 import com.techtricks.coe_auth.dtos.UserResponseDto;
-import com.techtricks.coe_auth.models.User;
+import com.techtricks.coe_auth.exceptions.UserAlreadyPresentException;
 import com.techtricks.coe_auth.services.UserService;
 import com.techtricks.coe_auth.utils.JWTUtil;
 import jakarta.validation.Valid;
@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
@@ -36,11 +38,20 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@Valid @RequestBody User  user) {
-        userService.save(user);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body("User created successfully");
+    public ResponseEntity<?> register(@Valid @RequestBody UserDto  user) throws UserAlreadyPresentException {
+        try {
+            UserResponseDto saved = userService.saveUser(user);
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(saved);
+        }catch (UserAlreadyPresentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(Map.of("User already present ", e.getMessage()));
+        }
+
+
+
     }
 
     @PostMapping("/authenticate")
