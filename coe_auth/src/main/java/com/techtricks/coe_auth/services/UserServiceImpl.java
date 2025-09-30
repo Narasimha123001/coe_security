@@ -7,6 +7,7 @@ import com.techtricks.coe_auth.exceptions.UserAlreadyPresentException;
 import com.techtricks.coe_auth.models.Role;
 import com.techtricks.coe_auth.models.User;
 import com.techtricks.coe_auth.repositorys.UserDetailsRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -62,7 +63,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User getUserById(Long registerNumber) throws UserNotFoundException {
-        Optional<User> optionalUser = userDetailsRepository.findById(registerNumber);
+        Optional<User> optionalUser = userDetailsRepository.findByRegisterNumber(registerNumber);
         if(optionalUser.isPresent()){
             return optionalUser.get();
         }
@@ -70,16 +71,16 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public User updateUser(Long registerNumber, User user) throws UserNotFoundException {
-        Optional<User> optionalUser = userDetailsRepository.findById(registerNumber);
-        if(optionalUser.isEmpty()){
-            throw new UserNotFoundException("user not found");
-        }
-        user.setUsername(user.getUsername());
-        user.setEmail(user.getEmail());
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setRegisterNumber(user.getRegisterNumber());
+        User existingUser = userDetailsRepository.findByRegisterNumber(registerNumber)
+                .orElseThrow(() -> new UserNotFoundException("user not found"));
 
-        return userDetailsRepository.save(user);
+        if (user.getUsername() != null) existingUser.setUsername(user.getUsername());
+        if (user.getEmail() != null) existingUser.setEmail(user.getEmail());
+        if (user.getPassword() != null) existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+        if (user.getRole() != null) existingUser.setRole(user.getRole());
+        if (user.getRegisterNumber() != null) existingUser.setRegisterNumber(user.getRegisterNumber());
+        return userDetailsRepository.save(existingUser);
     }
 }
