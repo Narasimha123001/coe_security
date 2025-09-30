@@ -2,15 +2,12 @@ package com.techtricks.coe_auth.models;
 
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Entity
@@ -28,10 +25,13 @@ public class User implements UserDetails {
     private String username;
     private String email;
     private String password;
-    @Column(unique = true , nullable = false)
+    @Column( unique = true , nullable = false)
     private Long registerNumber;
     @Enumerated(EnumType.STRING)
     private Role role;
+
+    @OneToMany(mappedBy = "user",fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    private List<Appointment> appointments = new ArrayList<>();
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
