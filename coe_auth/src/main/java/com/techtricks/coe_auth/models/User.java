@@ -33,6 +33,9 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user",fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     private List<Appointment> appointments = new ArrayList<>();
 
+    @OneToMany(mappedBy = "user" , fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    private List<RoomAccess> roomAccesses = new ArrayList<>();
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         Set<SimpleGrantedAuthority> authorities = new HashSet<>();
