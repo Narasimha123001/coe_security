@@ -25,19 +25,6 @@ public class UserServiceImpl implements UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-
-//    @Override
-//    public void save(User user) {
-//        Optional<User> optionalUser = userDetailsRepository.findByUsername(user.getUsername());
-//        if(optionalUser.isPresent()){
-//            throw new IllegalArgumentException("Username already exists");
-//        }
-//        user.setUsername(user.getUsername());
-//        user.setPassword(passwordEncoder.encode(user.getPassword()));
-//        user.setRole(user.getRole() != null ? user.getRole() : Role.STUDENT);
-//        userDetailsRepository.save(user);
-//    }
-
     @Override
     public UserResponseDto saveUser(UserDto dto) throws UserAlreadyPresentException {
         Optional<User> optionalUser = userDetailsRepository.findByUsername(dto.getUsername());
