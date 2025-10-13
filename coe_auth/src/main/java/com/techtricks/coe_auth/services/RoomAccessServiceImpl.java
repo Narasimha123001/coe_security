@@ -1,9 +1,9 @@
 package com.techtricks.coe_auth.services;
 
 import com.techtricks.coe_auth.dtos.RoomAccessResponseDto;
-import com.techtricks.coe_auth.exceptions.NoAccessPresentException;
 import com.techtricks.coe_auth.exceptions.RoomNotFoundExceptions;
 import com.techtricks.coe_auth.exceptions.UserNotFoundException;
+import com.techtricks.coe_auth.models.Role;
 import com.techtricks.coe_auth.models.Room;
 import com.techtricks.coe_auth.models.RoomAccess;
 import com.techtricks.coe_auth.models.User;
@@ -30,36 +30,51 @@ public class RoomAccessServiceImpl implements RoomAccessService {
         this.roomService = roomService;
     }
 
-    @Override
-    public RoomAccessResponseDto assignRoomAccess(Long registerNumber, Long roomId)
-            throws IllegalAccessException, RoomNotFoundExceptions, UserNotFoundException {
+  //TODO -> these private are used for verification and validation purpose
 
-        User user = userService.getUserById(registerNumber);
-        if (user == null) {
-            throw new UserNotFoundException("User not found with register number: " + registerNumber);
-        }
+    private RoomAccessResponseDto buildSuccessResponse(RoomAccess savedAccess) {
 
-        // check role — adjust Role enum or comparison to your codebase
-        if (!user.getRole().equals(com.techtricks.coe_auth.models.Role.STAFF)) {
-            throw new IllegalAccessException("Only staff can have the access");
-        }
+        return new  RoomAccessResponseDto(
+                savedAccess.getRoom().getRoomName(),
+                savedAccess.getUser().getUsername(),
+                savedAccess.getUser().getRegisterNumber()
+        );
+    }
 
-        Room room = roomService.findRoom(roomId);
-        if (room == null) {
-            throw new RoomNotFoundExceptions("Room not found with id: " + roomId);
-        }
-
+    private RoomAccess createRoomAccess(User user, Room room) {
         RoomAccess roomAccess = new RoomAccess();
         roomAccess.setRoom(room);
         roomAccess.setUser(user);
+        return roomAccess;
+    }
 
-        RoomAccess saved = roomAccessRepository.save(roomAccess);
+    private boolean hasExistingAccess(Long id, Long roomId) {
+        return roomAccessRepository.existsByUserIdAndRoomRoomId(id , roomId);
+    }
 
-        return new RoomAccessResponseDto(
-                saved.getRoom().getRoomName(),
-                saved.getUser().getUsername(),
-                saved.getUser().getRegisterNumber()
-        );
+    private Room validateAndGetRoom(Long roomId) throws RoomNotFoundExceptions {
+        Room room  = roomService.findRoom(roomId);
+        if(room == null) {
+            throw new RoomNotFoundExceptions("Room not found for room id: " + roomId);
+        }
+        return room;
+    }
+
+    private User validateAndGetUser(Long registerNumber) throws IllegalAccessException {
+        User user = userService.getUserById(registerNumber);
+        if(user == null) {
+            throw new UserNotFoundException(
+                    String.format("User with id %d not found", registerNumber)
+            );
+        }
+        if(!isStaffMember(user)){
+            throw new IllegalAccessException("Only staff members be assigned room access");
+        }
+        return user;
+    }
+
+    private boolean isStaffMember(User user) {
+        return user.getRole() !=null  && user.getRole() == Role.STAFF;
     }
 
     @Override
@@ -77,30 +92,29 @@ public class RoomAccessServiceImpl implements RoomAccessService {
     }
 
     @Override
+    public RoomAccessResponseDto assignRoomAccess(Long RegisterNumber,
+                                                  Long roomId) throws IllegalAccessException, RoomNotFoundExceptions, UserNotFoundException {
+        User user = validateAndGetUser(RegisterNumber);
+        Room room = validateAndGetRoom(roomId);
+        if(hasExistingAccess(user.getId() , roomId)){
+            return  new RoomAccessResponseDto();
+        }
+        RoomAccess roomAccess = createRoomAccess(user , room);
+        RoomAccess savedAccess = roomAccessRepository.save(roomAccess);
+        return buildSuccessResponse(savedAccess);
+    }
+
+
+
+    @Override
     @Transactional
     public void removeRoomAccess(Long registerNumber, Long roomId)
-            throws UserNotFoundException, RoomNotFoundExceptions, NoAccessPresentException {
-
-        User user = userService.getUserById(registerNumber);
-        if (user == null) {
-            throw new UserNotFoundException("User not found with register number: " + registerNumber);
+            throws UserNotFoundException, RoomNotFoundExceptions, IllegalAccessException {
+        User user = validateAndGetUser(registerNumber);
+        Room room = validateAndGetRoom(roomId);
+        if (hasExistingAccess(user.getId(), room.getRoomId())) {
+            roomAccessRepository.deleteRoomAccess(user.getId(), roomId);
         }
-
-        Room room = roomService.findRoom(roomId);
-        if (room == null) {
-            throw new RoomNotFoundExceptions("Room not found with id: " + roomId);
-        }
-
-        Optional<RoomAccess> optionalRoomAccess =
-                roomAccessRepository.findByUserIdAndRoomRoomId(user.getId(), roomId);
-
-        if (optionalRoomAccess.isEmpty()) {
-            throw new NoAccessPresentException("No access presented by user id: " + user.getId() +
-                    " to room id: " + room.getRoomId());
-        }
-
-        // delete by repository method (assumes method exists)
-        roomAccessRepository.deleteRoomAccess(user.getId(), roomId);
     }
 
     @Override
@@ -109,20 +123,14 @@ public class RoomAccessServiceImpl implements RoomAccessService {
     }
 
     @Override
-    public List<RoomAccessResponseDto> getAccessByRegNo(Long registerNumber) throws UserNotFoundException {
-        User user = userService.getUserById(registerNumber);
-        if (user == null) {
-            throw new UserNotFoundException("User not found with register number: " + registerNumber);
-        }
-        return mapToDtoList(roomAccessRepository.findByUser_id(registerNumber));
+    public List<RoomAccessResponseDto> getAccessByRegNo(Long registerNumber) throws UserNotFoundException, IllegalAccessException {
+        User user = validateAndGetUser(registerNumber);
+        return mapToDtoList(roomAccessRepository.findByUser_id(user.getRegisterNumber()));
     }
 
     @Override
-    public boolean validateAccess(Long RegisterNumber ,Long roomId) throws UserNotFoundException {
-        User user = userService.getUserById(RegisterNumber);
-        if (user == null) {
-            throw new UserNotFoundException("User not found with register number: " + RegisterNumber);
-        }
+    public boolean validateAccess(Long RegisterNumber ,Long roomId) throws UserNotFoundException, IllegalAccessException {
+        User user = validateAndGetUser(RegisterNumber);
         return roomAccessRepository.existsByUserIdAndRoomRoomId(user.getId(), roomId);
     }
 
